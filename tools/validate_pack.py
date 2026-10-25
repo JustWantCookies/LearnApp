@@ -15,8 +15,18 @@ from packlib import PACK_TARGET_BYTES, REPO, check_html  # noqa: E402
 SCHEMA = REPO / "schema" / "pack.schema.json"
 
 
-def validate_pack(pack: dict) -> list[str]:
+def _dict(v) -> dict:
+    return v if isinstance(v, dict) else {}
+
+
+def _list(v) -> list:
+    return v if isinstance(v, list) else []
+
+
+def validate_pack(pack) -> list[str]:
     problems = []
+    if not isinstance(pack, dict):
+        return ["(root): not a JSON object"]
     try:
         import jsonschema
         validator = jsonschema.Draft202012Validator(json.loads(SCHEMA.read_text("utf-8")))
@@ -26,18 +36,23 @@ def validate_pack(pack: dict) -> list[str]:
     except ImportError:
         problems.append("note: install 'jsonschema' for full schema checks (pip install jsonschema)")
 
-    media = set((pack.get("media") or {}).keys())
+    # Custom checks below must survive any shape: the schema errors above already report bad types.
+    media = set(_dict(pack.get("media")).keys())
     used = set()
-    for s in pack.get("chapter", {}).get("sections", []):
-        for p in check_html(s.get("html", ""), media):
+    for s in _list(_dict(pack.get("chapter")).get("sections")):
+        if not isinstance(s, dict):
+            continue
+        html = s.get("html") if isinstance(s.get("html"), str) else ""
+        for p in check_html(html, media):
             problems.append(f"{s.get('id')}: {p}")
-        used.update(m for m in media if f'src="{m}"' in s.get("html", ""))
-        ids = [i.get("id") for i in s.get("items", [])]
+        used.update(m for m in media if f'src="{m}"' in html)
+        items = [i for i in _list(s.get("items")) if isinstance(i, dict)]
+        ids = [repr(i.get("id")) for i in items]  # repr: ids may be any JSON value, even unhashable lists
         if len(ids) != len(set(ids)):
             problems.append(f"{s.get('id')}: duplicate item ids")
-        for it in s.get("items", []):
+        for it in items:
             if it.get("type") == "mcq":
-                opts = it.get("options", [])
+                opts = [o for o in _list(it.get("options")) if isinstance(o, str)]
                 if type(it.get("answer")) is not int or not 0 <= it["answer"] < len(opts):
                     problems.append(f"{s.get('id')}/{it.get('id')}: answer index out of range")
                 if any("all of the above" in o.lower() for o in opts):
@@ -52,7 +67,11 @@ def validate_pack(pack: dict) -> list[str]:
 
 def validate_file(path: Path) -> list[str]:
     raw = path.read_bytes()
-    problems = validate_pack(json.loads(raw))
+    try:
+        pack = json.loads(raw)
+    except ValueError as e:
+        return [f"not valid JSON: {e}"]
+    problems = validate_pack(pack)
     if len(raw) > PACK_TARGET_BYTES:
         problems.append(f"warning: {path.name} is {len(raw) / 1e6:.1f} MB (target < 10 MB)")
     # Only hard errors fail; warnings are printed by the caller.

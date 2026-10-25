@@ -33,6 +33,7 @@ export async function readerView(root, { bookId, chapterId, sectionId }, isCurre
   if (!isCurrent()) return;
 
   await markSeen(sectionKey);
+  if (!isCurrent()) return;
 
   const article = h('article', { class: 'reader', lang: book.language || 'en' });
   article.innerHTML = sanitizeSection(section.html);

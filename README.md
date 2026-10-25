@@ -36,7 +36,7 @@ python3 -m http.server 8765 --directory docs
 Open http://localhost:8765. Tests run at http://localhost:8765/tests.html, or in Node:
 
 ```bash
-node docs/tests/node.mjs
+node docs/tests/node.mjs   # or: npm test
 ```
 
 ## Deploy (GitHub Pages)
