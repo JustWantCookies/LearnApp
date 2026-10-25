@@ -1,0 +1,19 @@
+# Book content never goes into this public repo (copyright + privacy).
+content/
+*.epub
+*.pdf
+*.zip
+pack.json
+*.pack.json
+*-v[0-9]*.json
+*.items.json
+
+# Personal exports
+backup-*.json
+review-*.md
+
+# Python / OS noise
+__pycache__/
+*.pyc
+.venv/
+.DS_Store

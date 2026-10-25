@@ -1,0 +1,9 @@
+{
+  "name": "learnapp",
+  "private": true,
+  "description": "No dependencies and no build step. This file only tells Node that docs/**/*.js are ES modules (for `node docs/tests/node.mjs`).",
+  "type": "module",
+  "scripts": {
+    "test": "node docs/tests/node.mjs"
+  }
+}
