@@ -38,7 +38,7 @@ def validate_pack(pack: dict) -> list[str]:
         for it in s.get("items", []):
             if it.get("type") == "mcq":
                 opts = it.get("options", [])
-                if not isinstance(it.get("answer"), int) or not 0 <= it["answer"] < len(opts):
+                if type(it.get("answer")) is not int or not 0 <= it["answer"] < len(opts):
                     problems.append(f"{s.get('id')}/{it.get('id')}: answer index out of range")
                 if any("all of the above" in o.lower() for o in opts):
                     problems.append(f"{s.get('id')}/{it.get('id')}: 'all of the above' is not allowed")

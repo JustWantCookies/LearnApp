@@ -6,7 +6,7 @@ import { requestPersistence, removeBookContent } from '../packs.js';
 import {
   parseGrades, knownItemIds, applyGrades, createBackup, validateBackup, restoreBackup, markBackedUp,
 } from '../exportImport.js';
-import { daysBetween, todayStr } from '../dates.js';
+import { daysSince, todayStr } from '../dates.js';
 
 export async function settingsView(root, params, isCurrent) {
   const [theme, fontSize, caps, books, chapters, lastBackup] = await Promise.all([
@@ -69,7 +69,7 @@ export async function settingsView(root, params, isCurrent) {
     if (res.error) { preview.append(h('p', {}, res.error)); return; }
     const n = Object.keys(res.valid).length;
     preview.append(h('p', {}, `${n} item${n === 1 ? '' : 's'} will be updated.`));
-    if (res.unknown.length) preview.append(h('p', {}, `Unknown IDs (ignored): ${res.unknown.join(', ')}`));
+    if (res.unknown.length) preview.append(h('p', {}, `Unknown or non-explain IDs (ignored): ${res.unknown.join(', ')}`));
     if (res.invalid.length) preview.append(h('p', {}, `Invalid scores (ignored): ${res.invalid.join(', ')}`));
     if (n) {
       const apply = h('button', { type: 'button', class: 'btn btn-primary', onclick: async () => {
@@ -91,7 +91,7 @@ export async function settingsView(root, params, isCurrent) {
     h('div', { class: 'card stack' }, paste, h('button', { type: 'button', class: 'btn', onclick: check }, 'Preview'), preview));
 
   // ---------- Backup ----------
-  const days = lastBackup ? daysBetween(lastBackup.slice(0, 10), todayStr()) : null;
+  const days = lastBackup ? daysSince(lastBackup) : null;
   const backup = async () => {
     try {
       const data = await createBackup();
@@ -128,8 +128,10 @@ export async function settingsView(root, params, isCurrent) {
   const storageInfo = h('p', { class: 'small' }, 'Checking…');
   const persistInfo = h('p', { class: 'small' });
   const persistBtn = h('button', { type: 'button', class: 'btn btn-small', onclick: async () => {
-    const ok = await requestPersistence();
-    persistInfo.textContent = ok ? 'Persistent storage: granted' : 'Persistent storage: not granted (add the app to the Home Screen and try again)';
+    try {
+      const ok = await requestPersistence();
+      persistInfo.textContent = ok ? 'Persistent storage: granted' : 'Persistent storage: not granted (add the app to the Home Screen and try again)';
+    } catch (err) { toast(errorMessage(err)); }
   } }, 'Request persistent storage');
   root.append(h('h2', { class: 'section-title' }, 'Storage'),
     h('div', { class: 'card stack' }, storageInfo, persistInfo, persistBtn));
@@ -152,9 +154,11 @@ export async function settingsView(root, params, isCurrent) {
         h('span', { class: 'meta' }, 'About & License')),
       h('button', { type: 'button', class: 'btn btn-small btn-danger', onclick: async () => {
         if (!confirm(`Remove the content of "${b.title}" from this phone? Your progress is kept and comes back when you re-import the packs.`)) return;
-        await removeBookContent(b.id);
-        toast('Book content removed.');
-        rerender();
+        try {
+          await removeBookContent(b.id);
+          toast('Book content removed.');
+          rerender();
+        } catch (err) { toast(errorMessage(err)); }
       } }, 'Remove'))));
   }
   root.append(h('h2', { class: 'section-title' }, 'Books'),

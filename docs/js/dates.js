@@ -18,6 +18,11 @@ export function daysBetween(a, b) {
   return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000);
 }
 
+// Local calendar days since an ISO timestamp (e.g. lastBackup). Slicing the UTC string would be off by one near midnight.
+export function daysSince(iso, today = todayStr()) {
+  return daysBetween(todayStr(new Date(iso)), today);
+}
+
 export function relativeDay(dateStr, today = todayStr()) {
   const n = daysBetween(today, dateStr);
   if (n <= 0) return 'today';

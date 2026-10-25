@@ -55,7 +55,13 @@ export async function quizView(root, opts, isCurrent) {
         h('p', { class: `verdict ${correct ? 'good' : 'bad'}` }, correct ? 'Correct' : 'Not quite'),
         item.explanation ? h('p', {}, item.explanation) : null,
         h('p', { class: 'small' }, h('a', { href: hrefFor('read', item.bookId, item.chapterId, item.sectionId) }, `Read this section: ${title}`)),
-        h('button', { type: 'button', class: 'btn btn-primary btn-block', onclick: () => { i++; last ? showSummary() : showQuestion(); } },
+        h('button', { type: 'button', class: 'btn btn-primary btn-block', onclick: (e) => {
+          // A fast double tap would otherwise advance twice and run past the last question.
+          if (e.currentTarget.disabled) return;
+          e.currentTarget.disabled = true;
+          i++;
+          last ? showSummary() : showQuestion();
+        } },
           last ? 'See results' : 'Next question'));
       feedback.querySelector('.btn-primary').focus({ preventScroll: true });
       feedback.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

@@ -2,7 +2,7 @@ import { h, clear, hrefFor } from '../dom.js';
 import { get, getAll, getSetting } from '../db.js';
 import { latestReading, loadStudyState } from '../progress.js';
 import { countAvailable, SESSION_SIZE } from '../scheduler.js';
-import { daysBetween, todayStr } from '../dates.js';
+import { daysSince } from '../dates.js';
 
 export async function todayView(root, params, isCurrent) {
   const [books, reading, study, lastBackup] = await Promise.all([
@@ -49,7 +49,7 @@ export async function todayView(root, params, isCurrent) {
   root.append(h('h2', { class: 'section-title' }, 'Claude loop'),
     h('a', { class: 'btn btn-block', href: '#/export' }, 'Export review sheet'));
 
-  const days = lastBackup ? daysBetween(lastBackup.slice(0, 10), todayStr()) : null;
+  const days = lastBackup ? daysSince(lastBackup) : null;
   if (study.log.length && (days === null || days >= 14)) {
     root.append(h('div', { class: 'card warn', role: 'note' },
       h('h3', {}, days === null ? 'No backup yet' : `Last backup ${days} days ago`),

@@ -8,7 +8,7 @@ import re
 from datetime import date
 from pathlib import Path
 
-from bs4 import BeautifulSoup, Comment, NavigableString, Tag
+from bs4 import BeautifulSoup, Comment, Tag
 from PIL import Image
 
 REPO = Path(__file__).resolve().parent.parent

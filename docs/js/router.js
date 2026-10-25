@@ -35,14 +35,19 @@ export async function render() {
   else if (typeof result === 'function') result();
 }
 
-function matchRoute(path) {
+// Exported for tests. A malformed %-escape counts as "no match", so the app falls back to Today.
+export function matchRoute(path) {
   const [p] = path.split('?');
   for (const r of routes) {
     const m = r.re.exec(p);
     if (!m) continue;
-    const params = {};
-    r.names.forEach((n, i) => { params[n] = decodeURIComponent(m[i + 1]); });
-    return { ...r, params };
+    try {
+      const params = {};
+      r.names.forEach((n, i) => { params[n] = decodeURIComponent(m[i + 1]); });
+      return { ...r, params };
+    } catch {
+      return null;
+    }
   }
   return null;
 }

@@ -57,19 +57,29 @@ export function buildReviewSheet({ today, explains, weak }) {
   return out.join('\n') + '\n';
 }
 
+// Explain prompts for today's sheet: due reviews first (oldest due date first), then new ones from read sections.
+// Same policy as selectSession for MCQs, so new prompts never crowd out reviews under the cap.
+export function selectExplains({ items, reviews, seen, today, sectionKeys, cap = EXPLAIN_CAP }) {
+  const due = [];
+  const fresh = [];
+  for (const it of items) {
+    if (it.type !== 'explain' || !sectionKeys.has(it.sectionKey)) continue;
+    const r = reviews.get(it.id);
+    if (r) { if (isDue(r, today)) due.push({ it, r }); } else if (seen.has(it.sectionKey)) fresh.push(it);
+  }
+  due.sort((a, b) => (a.r.due < b.r.due ? -1 : a.r.due > b.r.due ? 1 : a.it.sort - b.it.sort));
+  fresh.sort((a, b) => a.sort - b.sort);
+  return [...due.map((d) => d.it), ...fresh].slice(0, cap);
+}
+
 export async function gatherReviewSheet() {
   const study = await loadStudyState();
   const chapters = await getAll('chapters');
   const sections = new Map();
   for (const ch of chapters) for (const s of ch.sections) sections.set(`${ch.key}/${s.id}`, s);
 
-  const explains = study.items
-    .filter((it) => it.type === 'explain' && sections.has(it.sectionKey))
-    .map((it) => ({ it, r: study.reviews.get(it.id) }))
-    .filter(({ it, r }) => (r ? isDue(r, study.today) : study.seen.has(it.sectionKey)))
-    .sort((a, b) => (a.r?.due || '0') < (b.r?.due || '0') ? -1 : (a.r?.due || '0') > (b.r?.due || '0') ? 1 : a.it.sort - b.it.sort)
-    .slice(0, EXPLAIN_CAP)
-    .map(({ it }) => {
+  const explains = selectExplains({ ...study, sectionKeys: new Set(sections.keys()) })
+    .map((it) => {
       const s = sections.get(it.sectionKey);
       return { id: it.id, prompt: it.prompt, rubric: it.rubric, reference: it.reference, sectionTitle: s.title, ref: referenceFor(s) };
     });
@@ -108,9 +118,10 @@ export function parseGrades(text, knownIds) {
   return { valid, unknown, invalid };
 }
 
+// Only explain items are graded by Claude; MCQ ids in a paste are reported as unknown.
 export async function knownItemIds() {
   const items = await getAll('items');
-  return new Set(items.map((i) => i.id));
+  return new Set(items.filter((i) => i.type === 'explain').map((i) => i.id));
 }
 
 export async function applyGrades(valid) {

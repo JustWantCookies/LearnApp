@@ -76,10 +76,9 @@ export async function saveFile(name, text, type) {
 export function pickFiles({ accept, multiple = false }) {
   return new Promise((resolve) => {
     const input = h('input', { type: 'file', accept, multiple, hidden: true });
-    input.addEventListener('change', () => {
-      resolve([...input.files]);
-      input.remove();
-    });
+    const done = (files) => { resolve(files); input.remove(); };
+    input.addEventListener('change', () => done([...input.files]));
+    input.addEventListener('cancel', () => done([]));
     document.body.append(input);
     input.click();
   });

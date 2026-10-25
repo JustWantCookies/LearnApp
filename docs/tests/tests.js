@@ -2,8 +2,9 @@
 
 import { applyResult, newState, normalizeResult, selectSession, usageToday, weakSections, INTERVALS } from '../js/scheduler.js';
 import { validatePack, globalItemId } from '../js/packs.js';
-import { parseGrades, buildReviewSheet, validateBackup, buildBackup, plainText, firstWords } from '../js/exportImport.js';
-import { addDays, daysBetween } from '../js/dates.js';
+import { parseGrades, buildReviewSheet, validateBackup, buildBackup, plainText, firstWords, selectExplains } from '../js/exportImport.js';
+import { addDays, daysBetween, daysSince } from '../js/dates.js';
+import { route, matchRoute } from '../js/router.js';
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -23,6 +24,21 @@ test('addDays crosses month and year', () => {
   eq(addDays('2026-12-31', 1), '2027-01-01');
   eq(addDays('2026-03-01', -1), '2026-02-28');
   eq(daysBetween('2026-10-25', '2026-11-04'), 10);
+});
+
+test('daysSince uses the local calendar day, not the UTC date', () => {
+  // 00:30 local time is still the previous day in UTC east of Greenwich.
+  const justAfterMidnight = new Date(2026, 9, 25, 0, 30).toISOString();
+  eq(daysSince(justAfterMidnight, T), 0);
+  eq(daysSince(new Date(2026, 9, 24, 23, 30).toISOString(), T), 1);
+});
+
+// ---------- router ----------
+test('router decodes params and treats malformed escapes as no match', () => {
+  route('/test-route/:id', () => {}, 'today');
+  eq(matchRoute('/test-route/a%20b').params, { id: 'a b' });
+  eq(matchRoute('/test-route/%E0%A4%A'), null);
+  eq(matchRoute('/nowhere'), null);
 });
 
 // ---------- scheduler ----------
@@ -193,6 +209,19 @@ test('parseGrades rejects garbage', () => {
 });
 
 // ---------- review sheet ----------
+test('selectExplains puts due reviews before new prompts and respects the cap', () => {
+  const ex = (id, sec, sort) => ({ id, type: 'explain', sectionKey: sec, sort });
+  const items = [ex('new1', 'b/c/s1', 1), ex('new2', 'b/c/s1', 2), ex('due1', 'b/c/s2', 3), ex('due2', 'b/c/s2', 4),
+    ex('later', 'b/c/s2', 5), ex('unread', 'b/c/s3', 6), ex('gone', 'b/c/s9', 7),
+    { id: 'm1', type: 'mcq', sectionKey: 'b/c/s1', sort: 0 }];
+  const reviews = new Map([
+    ['due1', { due: T }], ['due2', { due: addDays(T, -3) }], ['later', { due: addDays(T, 2) }],
+  ]);
+  const args = { items, reviews, seen: new Set(['b/c/s1', 'b/c/s2']), today: T, sectionKeys: new Set(['b/c/s1', 'b/c/s2', 'b/c/s3']) };
+  eq(selectExplains(args).map((i) => i.id), ['due2', 'due1', 'new1', 'new2']);
+  eq(selectExplains({ ...args, cap: 2 }).map((i) => i.id), ['due2', 'due1']);
+});
+
 test('review sheet contains ids, rubric and weak topics', () => {
   const md = buildReviewSheet({
     today: T,
