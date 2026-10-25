@@ -1,0 +1,8 @@
+:root { color-scheme: light dark; --pass: #2e7d32; --fail: #b3261e; }
+@media (prefers-color-scheme: dark) { :root { --pass: #7fcf86; --fail: #f2948c; } }
+body { font: 15px/1.5 -apple-system, system-ui, sans-serif; margin: 0 auto; padding: 16px; max-width: 720px; background: Canvas; color: CanvasText; }
+ul { list-style: none; padding: 0; }
+li { padding: 4px 0; overflow-wrap: anywhere; }
+.pass { color: var(--pass); }
+.fail { color: var(--fail); font-weight: 600; }
+#summary { font-size: 20px; font-weight: 700; }

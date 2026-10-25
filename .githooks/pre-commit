@@ -1,0 +1,39 @@
+#!/bin/sh
+# Refuses commits that would publish book content to the public repo.
+# Enable once per clone:  git config core.hooksPath .githooks
+
+fail=0
+max_bytes=1048576   # 1 MB
+
+# Staged files that are added, copied, modified or renamed.
+files=$(git diff --cached --name-only --diff-filter=ACMR)
+
+for f in $files; do
+  case "$f" in
+    docs/sample/*) continue ;;   # tiny hand-written sample pack, safe to commit
+  esac
+
+  case "$f" in
+    content/*|*.epub|*.pdf|*.zip|*pack.json|*-v[0-9]*.json|*.items.json|backup-*.json|review-*.md)
+      echo "pre-commit: blocked '$f' (book content or personal export)"; fail=1; continue ;;
+  esac
+
+  size=$(git cat-file -s ":$f" 2>/dev/null || echo 0)
+  case "$f" in
+    docs/vendor/*) ;;
+    *)
+      if [ "$size" -gt "$max_bytes" ]; then
+        echo "pre-commit: blocked '$f' ($size bytes > 1 MB)"; fail=1; continue
+      fi ;;
+  esac
+
+  # Embedded images (a long base64 payload) are how pack content looks inside JSON.
+  if git show ":$f" 2>/dev/null | grep -Eq 'data:image/[a-z]+;base64,[A-Za-z0-9+/]{200}'; then
+    echo "pre-commit: blocked '$f' (contains embedded image data, looks like a content pack)"; fail=1
+  fi
+done
+
+if [ "$fail" -ne 0 ]; then
+  echo "Commit aborted. Keep packs and sources outside the repo (e.g. ../../Content)."
+  exit 1
+fi
